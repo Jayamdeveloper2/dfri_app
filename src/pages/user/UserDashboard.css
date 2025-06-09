@@ -1,7 +1,7 @@
 /* Doctor Dashboard Styles */
 .doctor-dashboard {
     padding: 1rem;
-    max-width: 1350px;
+    /* max-width: 1350px; */
     margin: 0 auto;
 }
 .doctor-table-container {
@@ -338,4 +338,9 @@ background-color: #e6f7ff;
     display: flex;
     gap: 8px;
     align-items: center;
+}
+.toast-success {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-radius: 4px;
 }

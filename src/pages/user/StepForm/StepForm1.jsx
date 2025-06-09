@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { FiUser, FiDownloadCloud, FiUploadCloud, FiFile, FiX, FiAlertCircle } from "react-icons/fi"
 import "./StepForm.css"
 
@@ -10,28 +10,26 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
         amputation: false,
         angioplasty: false,
     })
+    const fileInputRef = useRef(null) // Add ref for file input
 
     // Clean up object URLs when component unmounts
     useEffect(() => {
         return () => {
-            if (formData.section1.consentFormPreview) {
+            if (formData.section1.consentFormPreview && formData.section1.consentFormPreview.startsWith('blob:')) {
                 URL.revokeObjectURL(formData.section1.consentFormPreview)
             }
         }
     }, [formData.section1.consentFormPreview])
-
     const handleDownloadConsentForm = () => {
         try {
-            const pdfPath = '/dfri5/Consent_form_registry.pdf'
+            const pdfPath = '/dfrifinal/Consent_form_registry.pdf'
 
-            // Check if file exists (basic check)
             fetch(pdfPath)
                 .then((res) => {
                     if (res.status === 404) {
                         throw new Error('PDF file not found')
                     }
 
-                    // Create download link
                     const link = document.createElement('a')
                     link.href = pdfPath
                     link.download = 'Diabetes_Foot_Ulcer_Consent_Form.pdf'
@@ -39,7 +37,6 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                     link.click()
                     document.body.removeChild(link)
 
-                    // Track download
                     handleChange(
                         { target: { name: "consentDownloaded", value: true } },
                         "section1"
@@ -58,15 +55,25 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
             toast.error("Something went wrong while downloading the form. Please try again later.")
         }
     }
+
     const handleRemoveConsent = () => {
-        if (formData.section1.consentFormPreview) {
+        if (formData.section1.consentFormPreview && formData.section1.consentFormPreview.startsWith('blob:')) {
             URL.revokeObjectURL(formData.section1.consentFormPreview)
         }
 
+        // Clear form data
         handleChange({ target: { name: "consentForm", value: null } }, "section1")
         handleChange({ target: { name: "consentFormPreview", value: null } }, "section1")
+        handleChange({ target: { name: "consentFormName", value: null } }, "section1")
         handleChange({ target: { name: "consentUploaded", value: false } }, "section1")
         handleChange({ target: { name: "consentVerified", value: false } }, "section1")
+
+        // Reset file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = ""
+        }
+
+        console.log("After Remove Consent:", formData.section1)
     }
 
     const handleConsentUpload = (e) => {
@@ -89,16 +96,20 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
             return
         }
 
-        // Create preview URL (for PDFs we'll just show a file icon)
-        const previewUrl = '/pdf-icon.png' // You should have a PDF icon in your public folder
+        // Use PDF icon for preview
+        const previewUrl = '/pdf-icon.png'
 
-        // Update form data with file and preview
+        // Update form data, overwriting any existing consentForm (string or File)
         handleChange(
             { target: { name: "consentForm", value: file } },
             "section1"
         )
         handleChange(
             { target: { name: "consentFormPreview", value: previewUrl } },
+            "section1"
+        )
+        handleChange(
+            { target: { name: "consentFormName", value: file.name } },
             "section1"
         )
         handleChange(
@@ -109,7 +120,16 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
             { target: { name: "consentVerified", value: false } },
             "section1"
         )
+
+        console.log("After Upload Consent:", {
+            consentForm: file,
+            consentFormName: file.name,
+            consentFormPreview: previewUrl
+        })
     }
+    console.log("hasUlcer value:", formData.section1.hasUlcer);
+    
+    console.log("wearShoes value:", formData.section1.wearShoes);
 
     return (
         <div className="medical-add-container">
@@ -160,15 +180,15 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                     <label htmlFor="consentUpload" className="upload-label">
                                         <FiUploadCloud className="upload-icon" />
                                         <p className="upload-instructions">
-                                            {formData.section1.consentForm ?
-                                                `File uploaded: ${formData.section1.consentForm.name}` :
-                                                'Click to upload signed PDF (Max 2MB)'
-                                            }
+                                            {formData.section1.consentForm
+                                                ? `File uploaded: ${formData.section1.consentFormName || 'consent_form.pdf'}`
+                                                : 'Click to upload signed PDF (Max 2MB)'}
                                         </p>
+
                                         {formData.section1.consentForm && (
                                             <div className="file-preview">
                                                 <FiFile className="file-icon" />
-                                                <span>{formData.section1.consentForm.name}</span>
+                                                <span>{formData.section1.consentFormName || 'consent_form.pdf'}</span>
                                                 <button
                                                     type="button"
                                                     className="remove-btn"
@@ -339,9 +359,9 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                 <option value="illiterate">Illiterate</option>
                                 <option value="primary">Primary School</option>
                                 <option value="secondary">Secondary School</option>
-                                <option value="higher_secondary">Higher Secondary</option>
+                                <option value="higher">Higher Secondary</option>
                                 <option value="graduate">Graduate</option>
-                                <option value="post_graduate">Post Graduate</option>
+                                <option value="postgraduate">Post Graduate</option>
                             </select>
                             {errors.education && <span className="medical-add-error-message">{errors.education}</span>}
                         </div>
@@ -547,6 +567,7 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                         <div className="medical-add-row">
                             <div className="medical-add-group">
                                 <label className="medical-add-label required">Leg/Foot Ulcer</label>
+
                                 <div className={`medical-add-radio-group ${errors.hasUlcer ? "medical-add-error-group" : ""}`}>
                                     {["yes", "no"].map((val) => (
                                         <label className="medical-add-radio-label" key={`ulcer-${val}`}>
@@ -555,41 +576,60 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                                 className="medical-add-radio-button"
                                                 name="hasUlcer"
                                                 value={val}
-                                                checked={formData.section1.hasUlcer === (val === "yes")}
+                                                checked={formData?.section1?.hasUlcer === val}
                                                 onChange={() => {
-                                                    handleChange({ target: { name: "hasUlcer", value: val === "yes" } }, "section1")
-                                                    setHasHistory({ ...hasHistory, ulcer: val === "yes" })
+                                                    handleChange(
+                                                        { target: { name: "hasUlcer", value: val } },
+                                                        "section1"
+                                                    );
+                                                    setHasHistory((prev) => ({ ...prev, ulcer: val === "yes" }));
                                                 }}
                                                 required
                                             />
-                                            <span className="medical-add-radio-button-label">{val === "yes" ? "Yes" : "No"}</span>
+                                            <span className="medical-add-radio-button-label">
+                                                {val === "yes" ? "Yes" : "No"}
+                                            </span>
                                         </label>
                                     ))}
                                 </div>
-                                {errors.hasUlcer && <span className="medical-add-error-message">{errors.hasUlcer}</span>}
+
+
+                                {errors.hasUlcer && (
+                                    <span className="medical-add-error-message">{errors.hasUlcer}</span>
+                                )}
                             </div>
+
 
                             <div className="medical-add-group">
                                 <label className="medical-add-label required">Lower Limb Amputation/Surgery</label>
                                 <div className={`medical-add-radio-group ${errors.hasAmputation ? "medical-add-error-group" : ""}`}>
                                     {["yes", "no"].map((val) => (
-                                        <label className="medical-add-radio-label" key={`amputation-${val}`}>
+                                        <label className="medical-add-radio-label" key={`hasAmputation-${val}`}>
                                             <input
                                                 type="radio"
                                                 className="medical-add-radio-button"
                                                 name="hasAmputation"
                                                 value={val}
-                                                checked={formData.section1.hasAmputation === (val === "yes")}
+                                                checked={formData?.section1?.hasAmputation === val}
                                                 onChange={() => {
-                                                    handleChange({ target: { name: "hasAmputation", value: val === "yes" } }, "section1")
-                                                    setHasHistory({ ...hasHistory, amputation: val === "yes" })
+                                                    handleChange(
+                                                        { target: { name: "hasAmputation", value: val } },
+                                                        "section1"
+                                                    );
+                                                    setHasHistory((prev) => ({
+                                                        ...prev,
+                                                        hasAmputation: val === "yes",
+                                                    }));
                                                 }}
                                                 required
                                             />
-                                            <span className="medical-add-radio-button-label">{val === "yes" ? "Yes" : "No"}</span>
+                                            <span className="medical-add-radio-button-label">
+                                                {val === "yes" ? "Yes" : "No"}
+                                            </span>
                                         </label>
                                     ))}
                                 </div>
+
                                 {errors.hasAmputation && <span className="medical-add-error-message">{errors.hasAmputation}</span>}
                             </div>
 
@@ -603,17 +643,26 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                                 className="medical-add-radio-button"
                                                 name="hasAngioplasty"
                                                 value={val}
-                                                checked={formData.section1.hasAngioplasty === (val === "yes")}
+                                                checked={formData?.section1?.hasAngioplasty === val}
                                                 onChange={() => {
-                                                    handleChange({ target: { name: "hasAngioplasty", value: val === "yes" } }, "section1")
-                                                    setHasHistory({ ...hasHistory, angioplasty: val === "yes" })
+                                                    handleChange(
+                                                        { target: { name: "hasAngioplasty", value: val } },
+                                                        "section1"
+                                                    );
+                                                    setHasHistory((prev) => ({
+                                                        ...prev,
+                                                        angioplasty: val === "yes",
+                                                    }));
                                                 }}
                                                 required
                                             />
-                                            <span className="medical-add-radio-button-label">{val === "yes" ? "Yes" : "No"}</span>
+                                            <span className="medical-add-radio-button-label">
+                                                {val === "yes" ? "Yes" : "No"}
+                                            </span>
                                         </label>
                                     ))}
                                 </div>
+
                                 {errors.hasAngioplasty && <span className="medical-add-error-message">{errors.hasAngioplasty}</span>}
                             </div>
                         </div>
@@ -643,7 +692,12 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                 inputLabel: "Duration (years) :",
                                 inputType: "number",
                             },
-                            { name: "heartFailure", label: "Heart Failure :", inputLabel: "Class :", inputType: "text" },
+                            {
+                                name: "heartFailure",
+                                label: "Heart Failure :",
+                                inputLabel: "Duration (years) :",
+                                inputType: "number",
+                            },
                             {
                                 name: "cerebrovascular",
                                 label: "Cerebrovascular disease :",
@@ -659,20 +713,20 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                             {
                                 name: "hypertension",
                                 label: "Hypertension :",
-                                inputLabel: "Duration (years)",
+                                inputLabel: "Duration (years) :",
                                 inputType: "number",
-                                verticalRadio: true // New property to indicate vertical layout
+                                verticalRadio: true,
                             },
                         ].map((item) => {
-                            const field = `has${item.name.charAt(0).toUpperCase() + item.name.slice(1)}`
-                            const duration = `${item.name}Duration`
+                            const field = item.name;
+                            const duration = `${item.name}Duration`;
 
                             return (
-                                <div className="medical-add-group" key={item.name}>
+                                <div className="medical-add-group" key={field}>
                                     {item.verticalRadio ? (
-                                        // Vertical layout for Hypertension
+                                        // Vertical layout for fields like Hypertension
                                         <div className="medical-add-column-layout">
-                                            <label className="medical-add-label ">{item.label}</label>
+                                            <label className="medical-add-label">{item.label}</label>
                                             <div className={`medical-add-radio-group ${errors[field] ? "medical-add-error-group" : ""}`}>
                                                 {["yes", "no"].map((val) => (
                                                     <label className="medical-add-radio-label" key={`${field}-${val}`}>
@@ -681,10 +735,17 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                                             className="medical-add-radio-button"
                                                             name={field}
                                                             value={val}
-                                                            checked={formData.section1[field] === (val === "yes")}
-                                                            onChange={(e) =>
-                                                                handleChange({ target: { name: field, value: val === "yes" } }, "section1")
-                                                            }
+                                                            checked={formData?.section1?.[field] === val}
+                                                            onChange={() => {
+                                                                handleChange(
+                                                                    { target: { name: field, value: val } },
+                                                                    "section1"
+                                                                );
+                                                                setHasHistory((prev) => ({
+                                                                    ...prev,
+                                                                    [field]: val === "yes",
+                                                                }));
+                                                            }}
                                                             required
                                                         />
                                                         <span className="medical-add-radio-button-label">{val === "yes" ? "Yes" : "No"}</span>
@@ -693,13 +754,13 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                             </div>
                                             {errors[field] && <span className="medical-add-error-message">{errors[field]}</span>}
 
-                                            {formData.section1[field] === true && (
+                                            {formData?.section1?.[field] === "yes" && (
                                                 <div className="medical-add-duration-input">
-                                                    <label className="medical-add-radio-label ">{item.inputLabel}</label>
+                                                    <label className="medical-add-radio-label">{item.inputLabel}</label>
                                                     <input
                                                         type={item.inputType}
                                                         name={duration}
-                                                        value={formData.section1[duration] || ""}
+                                                        value={formData?.section1?.[duration] || ""}
                                                         onChange={(e) => handleChange(e, "section1")}
                                                         min={item.inputType === "number" ? "0" : undefined}
                                                         className={`medical-add-input ${errors[duration] ? "medical-add-error-field" : ""}`}
@@ -710,10 +771,10 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                             )}
                                         </div>
                                     ) : (
-                                        // Original horizontal layout for all other items
+                                        // Horizontal layout for all other fields
                                         <div className="medical-add-row">
                                             <div style={{ minWidth: "300px" }}>
-                                                <label className="medical-add-label ">{item.label}</label>
+                                                <label className="medical-add-label">{item.label}</label>
                                             </div>
 
                                             <div className={`medical-add-radio-group ${errors[field] ? "medical-add-error-group" : ""}`}>
@@ -724,10 +785,17 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                                             className="medical-add-radio-button"
                                                             name={field}
                                                             value={val}
-                                                            checked={formData.section1[field] === (val === "yes")}
-                                                            onChange={(e) =>
-                                                                handleChange({ target: { name: field, value: val === "yes" } }, "section1")
-                                                            }
+                                                            checked={formData?.section1?.[field] === val}
+                                                            onChange={() => {
+                                                                handleChange(
+                                                                    { target: { name: field, value: val } },
+                                                                    "section1"
+                                                                );
+                                                                setHasHistory((prev) => ({
+                                                                    ...prev,
+                                                                    [field]: val === "yes",
+                                                                }));
+                                                            }}
                                                             required
                                                         />
                                                         <span className="medical-add-radio-button-label">{val === "yes" ? "Yes" : "No"}</span>
@@ -737,13 +805,13 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                             {errors[field] && <span className="medical-add-error-message">{errors[field]}</span>}
 
                                             <div className="medical-add-radio-group">
-                                                {formData.section1[field] === true && (
+                                                {formData?.section1?.[field] === "yes" && (
                                                     <>
-                                                        <label className="medical-add-radio-label ">{item.inputLabel}</label>
+                                                        <label className="medical-add-radio-label">{item.inputLabel}</label>
                                                         <input
                                                             type={item.inputType}
                                                             name={duration}
-                                                            value={formData.section1[duration] || ""}
+                                                            value={formData?.section1?.[duration] || ""}
                                                             onChange={(e) => handleChange(e, "section1")}
                                                             min={item.inputType === "number" ? "0" : undefined}
                                                             className={`medical-add-input ${errors[duration] ? "medical-add-error-field" : ""}`}
@@ -756,11 +824,10 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
                                         </div>
                                     )}
                                 </div>
-                            )
+                            );
                         })}
                     </div>
                 </div>
-
                 {/* Section 6: Lifestyle Factors */}
                 <div className="medical-add-section">
                     <h2 className="medical-add-section-title">Lifestyle Factors</h2>

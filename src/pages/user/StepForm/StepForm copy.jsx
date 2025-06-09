@@ -84,7 +84,7 @@ const StepForm = () => {
       erythema: "",
       tenderness: "",
       warmth: "",
-      discharge: "",
+   
       cultureReport: "",
       woundSize: "",
       woundLocation: "",
@@ -99,8 +99,7 @@ const StepForm = () => {
       amputationType: "",
       amputationLevel: "",
       debridementWithAmputation: "",
-      deathDate: "",
-      deathReason: "",
+    
       woundReferenceFile: null,
     },
     section3: {
