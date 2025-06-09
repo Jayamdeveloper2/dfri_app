@@ -22,7 +22,7 @@ const StepForm1 = ({ formData, handleChange, errors, setErrors }) => {
     }, [formData.section1.consentFormPreview])
     const handleDownloadConsentForm = () => {
         try {
-            const pdfPath = '/dfrifinal/Consent_form_registry.pdf'
+            const pdfPath = '/dfrifinal6/Consent_form_registry.pdf'
 
             fetch(pdfPath)
                 .then((res) => {
